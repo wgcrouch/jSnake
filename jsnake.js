@@ -5,13 +5,14 @@
 var snake = {
 	x: 1,			// current x position
 	y: 1,			// current y position
-	gap: 1,         // gap between blocks
+	gap: 2,         // gap between blocks
 	max_x: 200,		// Width of playing area
 	max_y: 200,		// Heigth of playing area
-	dir_x: 10,		// Direction hozizontal
+	dir_x: 12,		// Direction hozizontal
 	dir_y: 0,		// Direction Vertical
-	block_width: 9,	// Width of one block of the snake
-	block_height: 9,// Height of one block of the sname
+	blocks: 20,
+	block_width: 10,	// Width of one block of the snake
+	block_height: 10,// Height of one block of the sname
 	positions : [],	// Array to store the current blocks of the sname
 	length: 1,		// The current length of the snake
 	max_length: 10,	// The max length that the snake can reach
@@ -19,6 +20,7 @@ var snake = {
 		x: 0,
 		y: 0
 	},
+	
 	/**
 	 * Update the game, by moving the snake and checking for events.
 	 *
@@ -33,6 +35,7 @@ var snake = {
 
 		//Draw the next block of snake
 		context.beginPath();
+		console.log([this.x, this.y]);
 		context.rect(this.x,this.y, this.block_width, this.block_width);
 		context.closePath();
 		context.fill();
@@ -71,8 +74,9 @@ var snake = {
 		var blocks_x = (this.max_x) / width - this.gap;
 		var blocks_y = (this.max_y) / height - this.gap;
 		
-		this.fruit.x = Math.floor ( Math.random ( ) * blocks_x + 1) * width + this.gap;
-		this.fruit.y = Math.floor ( Math.random ( ) * blocks_y + 1) * height + this.gap;
+		this.fruit.x = Math.floor ( Math.random ( ) * blocks_x) * width + 1;
+		this.fruit.y = Math.floor ( Math.random ( ) * blocks_y) * height + 1;
+		console.log(this.fruit);
 	},
 	
 	checkFruit : function() {
@@ -97,17 +101,17 @@ var snake = {
 	 */
 	checkBounds : function()
 	{
-		if (this.x > this.max_x) {
+		if (this.x > this.blocks * (this.block_width + this.gap)) {
 			this.x = 1;
 		}
 		if (this.x <= 0) {
-			this.x = this.max_x +this.gap;
+			this.x = this.blocks * (this.block_width + this.gap) -1;
 		}
-		if (this.y > this.max_y) {
+		if (this.y > this.blocks * (this.block_height + this.gap)) {
 			this.y = 1;
 		}
 		if (this.y <= 0) {
-			this.y = this.max_y + this.gap;
+			this.y = this.blocks * (this.block_height + this.gap) -1;
 		}
 	},
 
