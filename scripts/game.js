@@ -69,16 +69,17 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
             dx = 1,
             dy = 0,
             length = 6,
-            speed = 1,
-            maxSpeed = 30,
-            frameCount = 0;
+            speed = 5,
+            maxSpeed = 70,
+            elapsedTime = 0;
+
 
         function tail() {
             return _.rest(positions);
         }
 
         function grow() {
-            length += 1;
+            length += 2;
             if (speed < maxSpeed) {
                 speed += 1;
             }
@@ -98,21 +99,19 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
         }
 
         function getFrameStep() {
-            return 40 - maxSpeed - speed;
+            return 1000 / speed;
         }
 
-        function update() {
-            console.log(getFrameStep());
-            if (frameCount >= getFrameStep()) {
+        function update(delta) {
+            elapsedTime += delta;
+            console.log(speed);
+            if (elapsedTime >= getFrameStep() && (dx || dy)) {
                 positions.unshift(nextPosition());
                 if (positions.length > length) {
                     positions.pop();
                 }
-                frameCount = 0;
-            } else {
-                frameCount += 1;
+                elapsedTime = 0;
             }
-
         }
 
         function draw(canvas) {
@@ -151,6 +150,12 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
             }
         }
 
+        function stop() {
+            EventManager.off('controller.direction', changeDir);
+            dx = 0;
+            dy = 0;
+        }
+
         EventManager.on('controller.direction', changeDir);
 
         return {
@@ -159,7 +164,8 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
             position: currentPosition,
             positions: getPositions,
             tail: tail,
-            grow: grow
+            grow: grow,
+            stop: stop
         };
     };
 
@@ -179,10 +185,15 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
             drawRect(canvas, pos);
         }
 
+        function update(delta) {
+            return true;
+        }
+
         return {
             position : position,
             move: move,
-            draw: draw
+            draw: draw,
+            update: update
         };
     };
 
@@ -191,8 +202,9 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
      */
     Game = function (canvasId, width, height) {
 
-        var snake = new Snake(),
+        var snake,
             fruit,
+            objects,
             time = 0,
             requestId = null,
             context,
@@ -201,6 +213,8 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
             canvasBounds;
 
         fruit = new Fruit(gridBounds);
+        snake = new Snake();
+        objects = [fruit, snake];
 
 
         context = document.getElementById(canvasId).getContext('2d');
@@ -232,6 +246,14 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
             return newPos;
         }
 
+        function stop() {
+            window.cancelAnimationFrame(requestId);
+        }
+        function gameOver() {
+            snake.stop();
+            window.setTimeout(stop, 2000);
+        }
+
         function checkRules() {
             var snakePosition = snake.position(),
                 x,
@@ -241,12 +263,12 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
 
             //Snake hit itself
             if (_.some(snake.tail(), _.partial(compareCoordinates, snake.position()))) {
-                console.log("Hit Self");
+                gameOver();
             }
 
             //Snake hit wall
             if (x < 0 || x > gridBounds[0] || y < 0 || y > gridBounds[1]) {
-                console.log("Hit Wall");
+                gameOver();
             }
 
             //Snake hit fruit
@@ -266,12 +288,15 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
         /**
          * Called on each frame to advance the game state
          */
-        function step() {
+        function step(delta) {
             clear();
             checkRules();
-            fruit.draw(context);
-            snake.draw(context);
-            snake.update();
+            _.forEach(objects, function (object) {
+                object.draw(context);
+            });
+            _.forEach(objects, function (object) {
+                object.update(delta);
+            });
         }
 
         /**
@@ -281,10 +306,8 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
             requestId = window.requestAnimationFrame(gameLoop);
             var delta, now = new Date().getTime(), interval = getInterval();
             delta = now - time;
-            if (delta > interval) {
-                time = now - (delta % interval);
-                step();
-            }
+            step(delta);
+            time = now;
         }
 
         function start() {
