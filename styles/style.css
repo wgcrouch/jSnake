@@ -1,5 +1,22 @@
 #game {
+    z-index: 200;
+    position:absolute;
+    left:0px;
+    top:0px;
+}
 
-    border: 1px solid black;
-	background-color: white;
+#background {
+    z-index: 100;
+    position:absolute;
+    left:0px;
+    top:0px;
+    border: 1px solid blue;
+}
+
+#ui {
+    z-index: 300;
+    position:absolute;
+    left:0px;
+    top:0px;
+    border: 1px solid blue;
 }

@@ -104,7 +104,6 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
 
         function update(delta) {
             elapsedTime += delta;
-            console.log(speed);
             if (elapsedTime >= getFrameStep() && (dx || dy)) {
                 positions.unshift(nextPosition());
                 if (positions.length > length) {
@@ -114,12 +113,15 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
             }
         }
 
-        function draw(canvas) {
-            canvas.fillStyle = '#f10087';
+        function draw(canvases) {
+            canvases.game.fillStyle = '#f10087';
+
             _.forEach(positions, function (position) {
-                drawRect(canvas, position);
+                drawRect(canvases.game, position);
             });
+
         }
+
 
         function changeDir(direction) {
             switch (direction) {
@@ -169,7 +171,7 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
         };
     };
 
-    Fruit = function (gridBounds) {
+    Fruit = function () {
         var pos = [10, 10];
 
         function position() {
@@ -180,9 +182,9 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
             pos = newPos;
         }
 
-        function draw(canvas) {
-            canvas.fillStyle = '#000000';
-            drawRect(canvas, pos);
+        function draw(canvases) {
+            canvases.game.fillStyle = '#000000';
+            drawRect(canvases.game, pos);
         }
 
         function update(delta) {
@@ -200,28 +202,27 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
     /**
      * Object to control the game. Runs the game loop and manages all the objects
      */
-    Game = function (canvasId, width, height) {
+    Game = function (canvasIds, width, height) {
 
         var snake,
             fruit,
             objects,
             time = 0,
             requestId = null,
-            context,
+            canvases = {},
             gridBounds = [width, height],
             fps = 60,
             canvasBounds;
 
-        fruit = new Fruit(gridBounds);
-        snake = new Snake();
-        objects = [fruit, snake];
-
-
-        context = document.getElementById(canvasId).getContext('2d');
         canvasBounds = grid2coord([gridBounds[0] + 1, gridBounds[1] + 1]);
-        console.log(canvasBounds);
-        context.canvas.width = canvasBounds[0];
-        context.canvas.height = canvasBounds[1];
+
+        _.forEach(canvasIds, function (id, name) {
+            var canvas = document.getElementById(id).getContext('2d');
+            canvas.canvas.width = canvasBounds[0];
+            canvas.canvas.height = canvasBounds[1];
+            canvases[name] = canvas;
+        });
+
 
         function getInterval() {
             return 1000 / fps;
@@ -249,15 +250,23 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
         function stop() {
             window.cancelAnimationFrame(requestId);
         }
+
+        /**
+         * Stop the game and show the game over screen
+         */
         function gameOver() {
             snake.stop();
             window.setTimeout(stop, 2000);
         }
 
+        /**
+         * Test the different game rules and take action
+         */
         function checkRules() {
             var snakePosition = snake.position(),
                 x,
                 y;
+
             x = snakePosition[0];
             y = snakePosition[1];
 
@@ -282,7 +291,8 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
         }
 
         function clear() {
-            context.clearRect(0, 0, canvasBounds[0], canvasBounds[1]);
+            canvases.game.clearRect(0, 0, canvasBounds[0], canvasBounds[1]);
+
         }
 
         /**
@@ -292,7 +302,7 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
             clear();
             checkRules();
             _.forEach(objects, function (object) {
-                object.draw(context);
+                object.draw(canvases);
             });
             _.forEach(objects, function (object) {
                 object.update(delta);
@@ -312,6 +322,9 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
 
         function start() {
             time = 0;
+            fruit = new Fruit(gridBounds);
+            snake = new Snake();
+            objects = [fruit, snake];
             gameLoop();
         }
 
@@ -323,7 +336,7 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
     $(document).ready(function () {
         ControllerKeyboard.init(document);
 
-        var game = new Game('game', 27, 20);
+        var game = new Game({game: 'game', back: 'background', ui: 'ui'}, 27, 20);
 
         game.start();
     });
