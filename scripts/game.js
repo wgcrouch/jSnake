@@ -17,6 +17,7 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
             $(element).keydown(function (evt) {
                 var dirs = {37: 'left', 38: 'up', 39: 'right', 40: 'down'};
                 if (dirs[evt.keyCode]) {
+                    evt.preventDefault();
                     EventManager.trigger('controller.direction', dirs[evt.keyCode]);
                 }
             });
