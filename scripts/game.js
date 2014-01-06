@@ -49,6 +49,9 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
         canvas.fillRect(coordPos[0], coordPos[1], 10, 10);
     }
 
+    /**
+     * Helper function to compare coordinates, useful for filter etc.
+     */
     function compareCoordinates(coord1, coord2) {
         return coord1[0] === coord2[0] && coord1[1] === coord2[1];
     }
@@ -77,7 +80,8 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
                 DOWN: [0, 1],
                 LEFT: [-1, 0],
                 RIGHT: [1, 0]
-            }, opposites = {
+            },
+            opposites = {
                 UP: directions.DOWN, 
                 DOWN: directions.UP,
                 LEFT: directions.RIGHT,
@@ -113,6 +117,9 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
             return 1000 / speed;
         }
 
+        /**
+         * Move the snake in the direction it is travelling. Snake speed is based on time elapsed 
+         */
         function update(delta) {
             elapsedTime += delta;
             if (elapsedTime >= getFrameStep() && (dir[0] || dir[1])) {
@@ -132,7 +139,6 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
             });
 
         }
-
 
         function changeDir(direction) {
             dir = (dir != opposites[direction]) ? directions[direction] : dir;            
@@ -156,6 +162,9 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
         };
     };
 
+    /**
+     * Fruit object, can be eaten by a snake
+     */
     Fruit = function () {
         var pos = [10, 10];
 
@@ -196,7 +205,6 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
             requestId = null,
             canvases = {},
             gridBounds = [width, height],
-            fps = 60,
             canvasBounds;
 
         canvasBounds = grid2coord([gridBounds[0] + 1, gridBounds[1] + 1]);
@@ -207,11 +215,6 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
             canvas.canvas.height = canvasBounds[1];
             canvases[name] = canvas;
         });
-
-
-        function getInterval() {
-            return 1000 / fps;
-        }
 
         /**
          * Get a random position that is not one of takenPositions
@@ -277,7 +280,6 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
 
         function clear() {
             canvases.game.clearRect(0, 0, canvasBounds[0], canvasBounds[1]);
-
         }
 
         /**
@@ -287,24 +289,27 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
             clear();
             checkRules();
             _.forEach(objects, function (object) {
-                object.draw(canvases);
-            });
-            _.forEach(objects, function (object) {
                 object.update(delta);
             });
+            _.forEach(objects, function (object) {
+                object.draw(canvases);
+            });            
         }
 
         /**
-         * Main game loop. Tries to maintain an consistent framerate
+         * Main game loop. Pass through time since last frame so we can do interpolation
          */
         function gameLoop() {
             requestId = window.requestAnimationFrame(gameLoop);
-            var delta, now = new Date().getTime(), interval = getInterval();
+            var delta, now = new Date().getTime();
             delta = now - time;
             step(delta);
             time = now;
         }
 
+        /**
+         * Start the game resetting all the game elements and starting up the game loop
+         */
         function start() {
             time = 0;
             fruit = new Fruit(gridBounds);
