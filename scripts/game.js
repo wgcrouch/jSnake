@@ -71,7 +71,18 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
             length = 6,
             speed = 5,
             maxSpeed = 70,
-            elapsedTime = 0;
+            elapsedTime = 0,
+            directions = {
+                UP: [0, -1],
+                DOWN: [0, 1],
+                LEFT: [-1, 0],
+                RIGHT: [1, 0]
+            }, opposites = {
+                UP: directions.DOWN, 
+                DOWN: directions.UP,
+                LEFT: directions.RIGHT,
+                RIGHT: directions.LEFT
+            };
 
 
         function tail() {
@@ -124,18 +135,6 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
 
 
         function changeDir(direction) {
-            var directions = {
-                UP: [0, -1],
-                DOWN: [0, 1],
-                LEFT: [-1, 0],
-                RIGHT: [1, 0]
-            }, opposites = {
-                UP: directions.DOWN, 
-                DOWN: directions.UP,
-                LEFT: directions.RIGHT,
-                RIGHT: directions.LEFT
-            };
-
             dir = (dir != opposites[direction]) ? directions[direction] : dir;            
         }
 
