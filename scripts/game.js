@@ -15,7 +15,7 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
     ControllerKeyboard = {
         init: function (element) {
             $(element).keydown(function (evt) {
-                var dirs = {37: 'left', 38: 'up', 39: 'right', 40: 'down'};
+                var dirs = {37: 'LEFT', 38: 'UP', 39: 'RIGHT', 40: 'DOWN'};
                 if (dirs[evt.keyCode]) {
                     evt.preventDefault();
                     EventManager.trigger('controller.direction', dirs[evt.keyCode]);
@@ -67,8 +67,7 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
                 [0, 1],
                 [0, 0]
             ],
-            dx = 1,
-            dy = 0,
+            dir = [1, 0],
             length = 6,
             speed = 5,
             maxSpeed = 70,
@@ -96,7 +95,7 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
 
         function nextPosition() {
             var pos = currentPosition();
-            return [pos[0] + dx, pos[1] + dy];
+            return [pos[0] + dir[0], pos[1] + dir[1]];
         }
 
         function getFrameStep() {
@@ -105,7 +104,7 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
 
         function update(delta) {
             elapsedTime += delta;
-            if (elapsedTime >= getFrameStep() && (dx || dy)) {
+            if (elapsedTime >= getFrameStep() && (dir[0] || dir[1])) {
                 positions.unshift(nextPosition());
                 if (positions.length > length) {
                     positions.pop();
@@ -125,38 +124,24 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
 
 
         function changeDir(direction) {
-            switch (direction) {
-            case 'up':
-                if (dy !== 1) {
-                    dy = -1;
-                    dx = 0;
-                }
-                break;
-            case 'down':
-                if (dy !== -1) {
-                    dy = 1;
-                    dx = 0;
-                }
-                break;
-            case 'left':
-                if (dx !== 1) {
-                    dy = 0;
-                    dx = -1;
-                }
-                break;
-            case 'right':
-                if (dx !== -1) {
-                    dy = 0;
-                    dx = 1;
-                }
-                break;
-            }
+            var directions = {
+                UP: [0, -1],
+                DOWN: [0, 1],
+                LEFT: [-1, 0],
+                RIGHT: [1, 0]
+            }, opposites = {
+                UP: directions.DOWN, 
+                DOWN: directions.UP,
+                LEFT: directions.RIGHT,
+                RIGHT: directions.LEFT
+            };
+
+            dir = (dir != opposites[direction]) ? directions[direction] : dir;            
         }
 
         function stop() {
             EventManager.off('controller.direction', changeDir);
-            dx = 0;
-            dy = 0;
+            dir = [0,0];
         }
 
         EventManager.on('controller.direction', changeDir);
