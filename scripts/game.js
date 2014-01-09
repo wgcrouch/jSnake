@@ -7,7 +7,8 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
         ControllerKeyboard,
         Snake,
         Game,
-        Fruit,
+        Fruit, 
+        GameOverScreen,
         FixedQueue;
 
     /**
@@ -16,11 +17,19 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
     ControllerKeyboard = {
         init: function (element) {
             $(element).keydown(function (evt) {
-                var dirs = {37: 'LEFT', 38: 'UP', 39: 'RIGHT', 40: 'DOWN'};
+                var dirs = {37: 'LEFT', 38: 'UP', 39: 'RIGHT', 40: 'DOWN'},
+                    menuOptions = {89: 'YES', 78: 'NO'};
+
                 if (dirs[evt.keyCode]) {
                     evt.preventDefault();
                     EventManager.trigger('controller.direction', dirs[evt.keyCode]);
                 }
+
+                if (menuOptions[evt.keyCode]) {
+                    evt.preventDefault();
+                    EventManager.trigger('controller.menu', menuOptions[evt.keyCode]);
+                }
+
             });
         }
     };
@@ -126,6 +135,10 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
             }
         }
 
+        function getSpeed() {
+            return speed;
+        }
+
         function currentPosition() {
             return positions[0];
         }
@@ -190,7 +203,8 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
             positions: getPositions,
             tail: tail,
             grow: grow,
-            stop: stop
+            stop: stop,
+            getSpeed : getSpeed
         };
     };
 
@@ -232,12 +246,14 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
 
         var snake,
             fruit,
-            objects,
+            objects  = [],
             time = 0,
             requestId = null,
             canvases = {},
             gridBounds = [width, height],
-            canvasBounds;
+            canvasBounds,
+            score = 0,
+            fruitScore = 1;
 
         canvasBounds = grid2coord([gridBounds[0] + 1, gridBounds[1] + 1]);
 
@@ -277,6 +293,33 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
         function gameOver() {
             snake.stop();
             window.setTimeout(stop, 2000);
+
+            canvases.ui.fillStyle = '#000000';
+            canvases.ui.fillRect(0,0, canvasBounds[0], canvasBounds[1]);
+            canvases.ui.fillStyle = '#FFFFFF';
+            canvases.ui.textAlign = 'center';
+            canvases.ui.font = 'normal 35px silkscreennormal';
+            canvases.ui.fillText("Score: " + score, canvasBounds[0]/2, canvasBounds[1]/2 - 50);
+            canvases.ui.font = 'normal 25px silkscreennormal';
+            canvases.ui.fillText("Game Over", canvasBounds[0]/2, canvasBounds[1]/2); 
+            canvases.ui.font = 'normal 15px silkscreennormal';
+            canvases.ui.fillText("Play Again?", canvasBounds[0]/2, canvasBounds[1]/2 + 45); 
+            canvases.ui.fillText("Y / N", canvasBounds[0]/2, canvasBounds[1]/2 + 65); 
+
+            EventManager.on('controller.menu', function(option) {                
+                var options = {
+                    'YES': start,
+                    'NO': closeGame
+                }
+                if (options[option]) {
+                    options[option]();
+                    EventManager.off('controller.menu');
+                }                
+            });
+        }
+
+        function closeGame() {
+            console.log("not implemented");
         }
 
         /**
@@ -303,10 +346,8 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
             //Snake hit fruit
             if (compareCoordinates(snakePosition, fruit.position())) {
                 fruit.move(randomPosition(snake.positions()));
-                snake.grow();
-                if (fps < 60) {
-                    fps += 1;
-                }
+                snake.grow();                
+                score += fruitScore * snake.getSpeed();
             }
         }
 
@@ -344,12 +385,13 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
          */
         function start() {
             time = 0;
+            score = 0;
             fruit = new Fruit(gridBounds);
             snake = new Snake();
             objects = [fruit, snake];
+            canvases.ui.clearRect(0, 0, canvasBounds[0], canvasBounds[1]);
             gameLoop();
         }
-
         return {
             start: start
         };
