@@ -7,7 +7,8 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
         ControllerKeyboard,
         Snake,
         Game,
-        Fruit;
+        Fruit,
+        FixedQueue;
 
     /**
      * Keyboard controller, fires events so its easy to swap out for something different
@@ -56,6 +57,30 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
         return coord1[0] === coord2[0] && coord1[1] === coord2[1];
     }
 
+    FixedQueue = function(length) {
+        var self = this,
+            items = [];
+        
+        self.add = function(item) {
+            items.unshift(item);
+            if (items.length > length) {
+                items.pop();
+            }
+        } 
+            
+        self.pop = function() {
+            if (items.length) {
+                return items.pop();
+            }
+            return false;
+        }
+            
+        self.getItems = function() {
+            return items;
+        }           
+        
+    }
+
 
 
     /**
@@ -86,7 +111,8 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
                 DOWN: directions.UP,
                 LEFT: directions.RIGHT,
                 RIGHT: directions.LEFT
-            };
+            },
+            actionQueue = new FixedQueue(4);
 
 
         function tail() {
@@ -122,7 +148,11 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
          */
         function update(delta) {
             elapsedTime += delta;
-            if (elapsedTime >= getFrameStep() && (dir[0] || dir[1])) {
+            if (elapsedTime >= getFrameStep() && (dir[0] || dir[1])) {                
+                var newDir = actionQueue.pop();
+                if (newDir) {
+                    changeDir(newDir);
+                }
                 positions.unshift(nextPosition());
                 if (positions.length > length) {
                     positions.pop();
@@ -149,7 +179,9 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
             dir = [0,0];
         }
 
-        EventManager.on('controller.direction', changeDir);
+        EventManager.on('controller.direction', function(direction) {
+            actionQueue.add(direction);
+        });
 
         return {
             draw: draw,
@@ -285,12 +317,12 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
         /**
          * Called on each frame to advance the game state
          */
-        function step(delta) {
-            clear();
+        function step(delta) {            
             checkRules();
             _.forEach(objects, function (object) {
                 object.update(delta);
             });
+            clear();
             _.forEach(objects, function (object) {
                 object.draw(canvases);
             });            
