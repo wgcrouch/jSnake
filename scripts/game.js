@@ -291,9 +291,7 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
          * Stop the game and show the game over screen
          */
         function gameOver() {
-            snake.stop();
-            window.setTimeout(stop, 2000);
-
+            stop();
             canvases.ui.fillStyle = '#000000';
             canvases.ui.fillRect(0,0, canvasBounds[0], canvasBounds[1]);
             canvases.ui.fillStyle = '#FFFFFF';
