@@ -95,7 +95,7 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
     /**
      * Our snake object, maintains its positions and can draw itself
      */
-    Snake = function () {
+    Snake = function (boundaries) {
         var positions = [
                 [2, 1],
                 [1, 1],
@@ -148,7 +148,12 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
         }
 
         function nextPosition() {
-            var pos = currentPosition();
+            var pos = currentPosition();  
+            if ((dir === directions.RIGHT && pos[0] === boundaries[0]) || (dir === directions.LEFT && pos[0] === 0)) {
+                return [boundaries[0] - pos[0], pos[1]];
+            } else if ((dir === directions.DOWN && pos[1] === boundaries[1]) || (dir === directions.UP && pos[1] === 0)) {
+                return [pos[0], boundaries[1] - pos[1]];
+            }
             return [pos[0] + dir[0], pos[1] + dir[1]];
         }
 
@@ -253,7 +258,7 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
             gridBounds = [width, height],
             canvasBounds,
             score = 0,
-            fruitScore = 1;
+            fruitScore = 20;
 
         canvasBounds = grid2coord([gridBounds[0] + 1, gridBounds[1] + 1]);
 
@@ -336,11 +341,6 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
                 gameOver();
             }
 
-            //Snake hit wall
-            if (x < 0 || x > gridBounds[0] || y < 0 || y > gridBounds[1]) {
-                gameOver();
-            }
-
             //Snake hit fruit
             if (compareCoordinates(snakePosition, fruit.position())) {
                 fruit.move(randomPosition(snake.positions()));
@@ -385,7 +385,7 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
             time = 0;
             score = 0;
             fruit = new Fruit(gridBounds);
-            snake = new Snake();
+            snake = new Snake(gridBounds);
             objects = [fruit, snake];
             canvases.ui.clearRect(0, 0, canvasBounds[0], canvasBounds[1]);
             gameLoop();
