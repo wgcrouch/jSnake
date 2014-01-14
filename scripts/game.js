@@ -3,13 +3,32 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
 
 (function ($) {
     'use strict';
-    var EventManager = _.extend({}, Backbone.Events),
+    var EventBus,
         ControllerKeyboard,
         Snake,
         Game,
         Fruit,
         GameOverScreen,
-        FixedQueue;
+        FixedQueue, 
+        FruitChecker;
+
+
+    EventBus = function () {
+        var events = [];
+
+        function trigger(name, value) {
+            events.unshift({ 'name' : name, 'value' : value});
+        }
+
+        function pop() {
+            return events.pop();
+        }
+
+        return {
+            trigger: trigger,
+            pop: pop
+        }
+    }();
 
     /**
      * Keyboard controller, fires events so its easy to swap out for something different
@@ -22,12 +41,12 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
 
                 if (dirs[evt.keyCode]) {
                     evt.preventDefault();
-                    EventManager.trigger('controller.direction', dirs[evt.keyCode]);
+                    EventBus.trigger('controller.direction', dirs[evt.keyCode]);
                 }
 
                 if (menuOptions[evt.keyCode]) {
                     evt.preventDefault();
-                    EventManager.trigger('controller.menu', menuOptions[evt.keyCode]);
+                    EventBus.trigger('controller.menu', menuOptions[evt.keyCode]);
                 }
 
             });
@@ -164,7 +183,7 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
         }
 
         function changeDir(direction) {
-            dir = (dir !== opposites[direction]) ? directions[direction] : dir;
+            actionQueue.add(direction);            
         }
 
         /**
@@ -175,12 +194,17 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
             if (elapsedTime >= getFrameStep() && (dir[0] || dir[1])) {
                 var newDir = actionQueue.pop();
                 if (newDir) {
-                    changeDir(newDir);
+                    dir = (dir !== opposites[newDir]) ? directions[newDir] : dir;
                 }
                 positions.unshift(nextPosition());
                 if (positions.length > length) {
                     positions.pop();
                 }
+
+                if (_.some(tail(), _.partial(compareCoordinates, currentPosition()))) {
+                    EventBus.trigger('snake.hitSelf', true);
+                }
+
                 elapsedTime = 0;
             }
         }
@@ -194,16 +218,9 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
 
         }
 
-
-
         function stop() {
-            EventManager.off('controller.direction', changeDir);
             dir = [0, 0];
-        }
-
-        EventManager.on('controller.direction', function (direction) {
-            actionQueue.add(direction);
-        });
+        }       
 
         return {
             draw: draw,
@@ -213,7 +230,8 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
             tail: tail,
             grow: grow,
             stop: stop,
-            getSpeed : getSpeed
+            getSpeed : getSpeed,
+            changeDir: changeDir
         };
     };
 
@@ -248,6 +266,17 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
         };
     };
 
+    FruitChecker = function(snake, fruit) {
+        return {
+            update: function() {
+                if (compareCoordinates(snake.position(), fruit.position())) {
+                    EventBus.trigger('snake.eatFruit', true);
+                }
+            },
+            draw: function() {}
+        }
+    }
+
     /**
      * Object to control the game. Runs the game loop and manages all the objects
      */
@@ -262,7 +291,8 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
             gridBounds = [width, height],
             canvasBounds,
             score = 0,
-            fruitScore = 20;
+            fruitScore = 20,
+            running = false;
 
         canvasBounds = grid2coord([gridBounds[0] + 1, gridBounds[1] + 1]);
 
@@ -293,46 +323,54 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
         }
 
         function stop() {
-            window.cancelAnimationFrame(requestId);
+            running = false;
+            objects = [];
         }
 
         function closeGame() {
             console.log("not implemented");
         }
 
-        /**
-         * Test the different game rules and take action
-         */
-        function checkRules() {
-            var snakePosition = snake.position(),
-                x,
-                y;
-
-            x = snakePosition[0];
-            y = snakePosition[1];
-
-            //Snake hit itself
-            if (_.some(snake.tail(), _.partial(compareCoordinates, snake.position()))) {
-                gameOver();
-            }
-
-            //Snake hit fruit
-            if (compareCoordinates(snakePosition, fruit.position())) {
-                fruit.move(randomPosition(snake.positions()));
-                snake.grow();
-                score += fruitScore * snake.getSpeed();
-            }
-        }
-
         function clear() {
             canvases.game.clearRect(0, 0, canvasBounds[0], canvasBounds[1]);
+        }
+
+
+        function handleEvents() 
+        {
+            var event,
+                options = {
+                     'YES': start,
+                     'NO': closeGame
+                };
+
+            while (event = EventBus.pop()) {
+                switch (event.name) { 
+                    case 'controller.direction':
+                        snake.changeDir(event.value);
+                        break;
+                    case 'controller.menu': 
+                        if (!running && options[event.value]) {
+                            options[event.value]();                        
+                        }
+                        break;               
+                    case 'snake.hitSelf':
+                        gameOver();
+                        break;
+                    case 'snake.eatFruit':
+                        fruit.move(randomPosition(snake.positions()));
+                        snake.grow();
+                        score += fruitScore * snake.getSpeed();
+                        break;
+                }
+            }
         }
 
         /**
          * Called on each frame to advance the game state
          */
         function step(delta) {
-            checkRules();
+            handleEvents();
             _.forEach(objects, function (object) {
                 object.update(delta);
             });
@@ -357,11 +395,12 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
          * Start the game resetting all the game elements and starting up the game loop
          */
         function start() {
+            running = true;
             time = 0;
             score = 0;
             fruit = new Fruit(gridBounds);
-            snake = new Snake(gridBounds);
-            objects = [fruit, snake];
+            snake = new Snake(gridBounds);            
+            objects = [fruit, snake, new FruitChecker(snake, fruit)];
             canvases.ui.clearRect(0, 0, canvasBounds[0], canvasBounds[1]);
             gameLoop();
         }
@@ -382,17 +421,6 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
             canvases.ui.font = 'normal 15px silkscreennormal';
             canvases.ui.fillText("Play Again?", canvasBounds[0] / 2, canvasBounds[1] / 2 + 45);
             canvases.ui.fillText("Y / N", canvasBounds[0] / 2, canvasBounds[1] / 2 + 65);
-
-            EventManager.on('controller.menu', function (option) {
-                var options = {
-                    'YES': start,
-                    'NO': closeGame
-                };
-                if (options[option]) {
-                    options[option]();
-                    EventManager.off('controller.menu');
-                }
-            });
         }
 
 
