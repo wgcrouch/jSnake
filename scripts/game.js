@@ -7,7 +7,7 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
         ControllerKeyboard,
         Snake,
         Game,
-        Fruit, 
+        Fruit,
         GameOverScreen,
         FixedQueue;
 
@@ -66,29 +66,29 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
         return coord1[0] === coord2[0] && coord1[1] === coord2[1];
     }
 
-    FixedQueue = function(length) {
+    FixedQueue = function (length) {
         var self = this,
             items = [];
-        
-        self.add = function(item) {
+
+        self.add = function (item) {
             items.unshift(item);
             if (items.length > length) {
                 items.pop();
             }
-        } 
-            
-        self.pop = function() {
+        };
+
+        self.pop = function () {
             if (items.length) {
                 return items.pop();
             }
             return false;
-        }
-            
-        self.getItems = function() {
+        };
+
+        self.getItems = function () {
             return items;
-        }           
-        
-    }
+        };
+
+    };
 
 
 
@@ -116,7 +116,7 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
                 RIGHT: [1, 0]
             },
             opposites = {
-                UP: directions.DOWN, 
+                UP: directions.DOWN,
                 DOWN: directions.UP,
                 LEFT: directions.RIGHT,
                 RIGHT: directions.LEFT
@@ -148,17 +148,23 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
         }
 
         function nextPosition() {
-            var pos = currentPosition();  
+            var pos = currentPosition(), next;
             if ((dir === directions.RIGHT && pos[0] === boundaries[0]) || (dir === directions.LEFT && pos[0] === 0)) {
-                return [boundaries[0] - pos[0], pos[1]];
+                next = [boundaries[0] - pos[0], pos[1]];
             } else if ((dir === directions.DOWN && pos[1] === boundaries[1]) || (dir === directions.UP && pos[1] === 0)) {
-                return [pos[0], boundaries[1] - pos[1]];
+                next = [pos[0], boundaries[1] - pos[1]];
+            } else {
+                next = [pos[0] + dir[0], pos[1] + dir[1]];
             }
-            return [pos[0] + dir[0], pos[1] + dir[1]];
+            return next;
         }
 
         function getFrameStep() {
             return 1000 / speed;
+        }
+
+        function changeDir(direction) {
+            dir = (dir !== opposites[direction]) ? directions[direction] : dir;
         }
 
         /**
@@ -166,7 +172,7 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
          */
         function update(delta) {
             elapsedTime += delta;
-            if (elapsedTime >= getFrameStep() && (dir[0] || dir[1])) {                
+            if (elapsedTime >= getFrameStep() && (dir[0] || dir[1])) {
                 var newDir = actionQueue.pop();
                 if (newDir) {
                     changeDir(newDir);
@@ -188,16 +194,14 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
 
         }
 
-        function changeDir(direction) {
-            dir = (dir != opposites[direction]) ? directions[direction] : dir;            
-        }
+
 
         function stop() {
             EventManager.off('controller.direction', changeDir);
-            dir = [0,0];
+            dir = [0, 0];
         }
 
-        EventManager.on('controller.direction', function(direction) {
+        EventManager.on('controller.direction', function (direction) {
             actionQueue.add(direction);
         });
 
@@ -292,35 +296,6 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
             window.cancelAnimationFrame(requestId);
         }
 
-        /**
-         * Stop the game and show the game over screen
-         */
-        function gameOver() {
-            stop();
-            canvases.ui.fillStyle = '#000000';
-            canvases.ui.fillRect(0,0, canvasBounds[0], canvasBounds[1]);
-            canvases.ui.fillStyle = '#FFFFFF';
-            canvases.ui.textAlign = 'center';
-            canvases.ui.font = 'normal 35px silkscreennormal';
-            canvases.ui.fillText("Score: " + score, canvasBounds[0]/2, canvasBounds[1]/2 - 50);
-            canvases.ui.font = 'normal 25px silkscreennormal';
-            canvases.ui.fillText("Game Over", canvasBounds[0]/2, canvasBounds[1]/2); 
-            canvases.ui.font = 'normal 15px silkscreennormal';
-            canvases.ui.fillText("Play Again?", canvasBounds[0]/2, canvasBounds[1]/2 + 45); 
-            canvases.ui.fillText("Y / N", canvasBounds[0]/2, canvasBounds[1]/2 + 65); 
-
-            EventManager.on('controller.menu', function(option) {                
-                var options = {
-                    'YES': start,
-                    'NO': closeGame
-                }
-                if (options[option]) {
-                    options[option]();
-                    EventManager.off('controller.menu');
-                }                
-            });
-        }
-
         function closeGame() {
             console.log("not implemented");
         }
@@ -344,7 +319,7 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
             //Snake hit fruit
             if (compareCoordinates(snakePosition, fruit.position())) {
                 fruit.move(randomPosition(snake.positions()));
-                snake.grow();                
+                snake.grow();
                 score += fruitScore * snake.getSpeed();
             }
         }
@@ -356,7 +331,7 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
         /**
          * Called on each frame to advance the game state
          */
-        function step(delta) {            
+        function step(delta) {
             checkRules();
             _.forEach(objects, function (object) {
                 object.update(delta);
@@ -364,7 +339,7 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
             clear();
             _.forEach(objects, function (object) {
                 object.draw(canvases);
-            });            
+            });
         }
 
         /**
@@ -390,6 +365,37 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
             canvases.ui.clearRect(0, 0, canvasBounds[0], canvasBounds[1]);
             gameLoop();
         }
+
+        /**
+         * Stop the game and show the game over screen
+         */
+        function gameOver() {
+            stop();
+            canvases.ui.fillStyle = '#000000';
+            canvases.ui.fillRect(0, 0, canvasBounds[0], canvasBounds[1]);
+            canvases.ui.fillStyle = '#FFFFFF';
+            canvases.ui.textAlign = 'center';
+            canvases.ui.font = 'normal 35px silkscreennormal';
+            canvases.ui.fillText("Score: " + score, canvasBounds[0] / 2, canvasBounds[1] / 2 - 50);
+            canvases.ui.font = 'normal 25px silkscreennormal';
+            canvases.ui.fillText("Game Over", canvasBounds[0] / 2, canvasBounds[1] / 2);
+            canvases.ui.font = 'normal 15px silkscreennormal';
+            canvases.ui.fillText("Play Again?", canvasBounds[0] / 2, canvasBounds[1] / 2 + 45);
+            canvases.ui.fillText("Y / N", canvasBounds[0] / 2, canvasBounds[1] / 2 + 65);
+
+            EventManager.on('controller.menu', function (option) {
+                var options = {
+                    'YES': start,
+                    'NO': closeGame
+                };
+                if (options[option]) {
+                    options[option]();
+                    EventManager.off('controller.menu');
+                }
+            });
+        }
+
+
         return {
             start: start
         };
