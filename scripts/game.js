@@ -183,7 +183,7 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
         }
 
         function getFrameStep() {
-            return 1000 / speed;
+            return 1000 / (speed /2);
         }
 
         function changeDir(direction) {
