@@ -276,6 +276,41 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
         }
     }
 
+    GameOverScreen = function(score) {
+        var currentScore = 0;
+
+        function update() {
+            if (currentScore != score) {
+                currentScore += 100;
+            }
+            if (currentScore > score) {
+                currentScore = score;
+            }
+        }
+
+        function draw(canvases) {
+            var width = canvases.ui.canvas.width,
+                height = canvases.ui.canvas.height;
+
+            canvases.ui.fillStyle = '#000000';
+            canvases.ui.fillRect(0, 0, width, height);
+            canvases.ui.fillStyle = '#FFFFFF';
+            canvases.ui.textAlign = 'center';
+            canvases.ui.font = 'normal 35px silkscreennormal';
+            canvases.ui.fillText("Score: " + currentScore, width / 2, height / 2 - 50);
+            canvases.ui.font = 'normal 25px silkscreennormal';
+            canvases.ui.fillText("Game Over", width / 2, height / 2);
+            canvases.ui.font = 'normal 15px silkscreennormal';
+            canvases.ui.fillText("Play Again?", width / 2, height / 2 + 45);
+            canvases.ui.fillText("Y / N", width / 2, height / 2 + 65);
+        }
+
+        return {
+            draw: draw,
+            update: update
+        }
+    }
+
     /**
      * Object to control the game. Runs the game loop and manages all the objects
      */
@@ -332,6 +367,7 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
 
         function clear() {
             canvases.game.clearRect(0, 0, canvasBounds[0], canvasBounds[1]);
+            canvases.ui.clearRect(0, 0, canvasBounds[0], canvasBounds[1]);
         }
 
 
@@ -409,17 +445,7 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
          */
         function gameOver() {
             stop();
-            canvases.ui.fillStyle = '#000000';
-            canvases.ui.fillRect(0, 0, canvasBounds[0], canvasBounds[1]);
-            canvases.ui.fillStyle = '#FFFFFF';
-            canvases.ui.textAlign = 'center';
-            canvases.ui.font = 'normal 35px silkscreennormal';
-            canvases.ui.fillText("Score: " + score, canvasBounds[0] / 2, canvasBounds[1] / 2 - 50);
-            canvases.ui.font = 'normal 25px silkscreennormal';
-            canvases.ui.fillText("Game Over", canvasBounds[0] / 2, canvasBounds[1] / 2);
-            canvases.ui.font = 'normal 15px silkscreennormal';
-            canvases.ui.fillText("Play Again?", canvasBounds[0] / 2, canvasBounds[1] / 2 + 45);
-            canvases.ui.fillText("Y / N", canvasBounds[0] / 2, canvasBounds[1] / 2 + 65);
+            objects.push(new GameOverScreen(score));
         }
 
 
