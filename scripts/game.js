@@ -10,7 +10,19 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
         Fruit,
         GameOverScreen,
         FixedQueue, 
-        FruitChecker;
+        FruitChecker,
+        directions = {
+            UP: [0, -1],
+            DOWN: [0, 1],
+            LEFT: [-1, 0],
+            RIGHT: [1, 0]
+        },
+        opposites = {
+            UP: directions.DOWN,
+            DOWN: directions.UP,
+            LEFT: directions.RIGHT,
+            RIGHT: directions.LEFT
+        };
 
 
     EventBus = function () {
@@ -85,9 +97,10 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
         return coord1[0] === coord2[0] && coord1[1] === coord2[1];
     }
 
-    FixedQueue = function (length) {
+    FixedQueue = function (length, initialItems) {
         var self = this,
-            items = [];
+            items = [],
+            i;
 
         self.add = function (item) {
             items.unshift(item);
@@ -95,6 +108,12 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
                 items.pop();
             }
         };
+
+        if ($.isArray(initialItems)) {
+            for (i = 0; i < initialItems.length; i++) {
+                self.add(initialItems[i]);
+            }
+        }
 
         self.pop = function () {
             if (items.length) {
@@ -107,6 +126,10 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
             return items;
         };
 
+        self.grow = function(number) {
+            length += number;
+        }
+
     };
 
 
@@ -115,40 +138,21 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
      * Our snake object, maintains its positions and can draw itself
      */
     Snake = function (boundaries) {
-        var positions = [
-                [2, 1],
-                [1, 1],
-                [1, 2],
-                [0, 2],
-                [0, 1],
-                [0, 0]
-            ],
-            dir = [1, 0],
+        var positions = new FixedQueue(4, [[2,2]]),
+            dir = directions.RIGHT,
             length = 6,
-            speed = 5,
-            maxSpeed = 70,
+            speed = 10,
+            maxSpeed = 100,
             elapsedTime = 0,
-            directions = {
-                UP: [0, -1],
-                DOWN: [0, 1],
-                LEFT: [-1, 0],
-                RIGHT: [1, 0]
-            },
-            opposites = {
-                UP: directions.DOWN,
-                DOWN: directions.UP,
-                LEFT: directions.RIGHT,
-                RIGHT: directions.LEFT
-            },
             actionQueue = new FixedQueue(4);
 
 
         function tail() {
-            return _.rest(positions);
+            return _.rest(getPositions());
         }
 
         function grow() {
-            length += 2;
+            positions.grow(2);
             if (speed < maxSpeed) {
                 speed += 1;
             }
@@ -159,11 +163,11 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
         }
 
         function currentPosition() {
-            return positions[0];
+            return getPositions()[0];
         }
 
         function getPositions() {
-            return positions;
+            return positions.getItems();
         }
 
         function nextPosition() {
@@ -196,10 +200,7 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
                 if (newDir) {
                     dir = (dir !== opposites[newDir]) ? directions[newDir] : dir;
                 }
-                positions.unshift(nextPosition());
-                if (positions.length > length) {
-                    positions.pop();
-                }
+                positions.add(nextPosition());
 
                 if (_.some(tail(), _.partial(compareCoordinates, currentPosition()))) {
                     EventBus.trigger('snake.hitSelf', true);
@@ -212,7 +213,7 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
         function draw(canvases) {
             canvases.game.fillStyle = '#f10087';
 
-            _.forEach(positions, function (position) {
+            _.forEach(positions.getItems(), function (position) {
                 drawRect(canvases.game, position);
             });
 
@@ -227,9 +228,7 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
             update: update,
             position: currentPosition,
             positions: getPositions,
-            tail: tail,
             grow: grow,
-            stop: stop,
             getSpeed : getSpeed,
             changeDir: changeDir
         };
