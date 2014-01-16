@@ -3,13 +3,13 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
 
 (function ($) {
     'use strict';
-    var EventBus,
-        ControllerKeyboard,
+    var eventBus,
+        controllerKeyboard,
         Snake,
         Game,
         Fruit,
         GameOverScreen,
-        FixedQueue, 
+        FixedQueue,
         FruitChecker,
         directions = {
             UP: [0, -1],
@@ -25,40 +25,41 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
         };
 
 
-    EventBus = function () {
-        var events = [];
+    /**
+     * Even bus to handle events that may occur asyncronoulsy
+     */
+    eventBus = (function () {
+        var events = [],
+            instance = {};
 
-        function trigger(name, value) {
+        instance.trigger = function trigger(name, value) {
             events.unshift({ 'name' : name, 'value' : value});
-        }
+        };
 
-        function pop() {
+        instance.pop = function pop() {
             return events.pop();
-        }
+        };
 
-        return {
-            trigger: trigger,
-            pop: pop
-        }
-    }();
+        return instance;
+    }());
 
     /**
      * Keyboard controller, fires events so its easy to swap out for something different
      */
-    ControllerKeyboard = {
-        init: function (element) {
+    controllerKeyboard = {
+        init: function init(element) {
             $(element).keydown(function (evt) {
                 var dirs = {37: 'LEFT', 38: 'UP', 39: 'RIGHT', 40: 'DOWN'},
                     menuOptions = {89: 'YES', 78: 'NO'};
 
                 if (dirs[evt.keyCode]) {
                     evt.preventDefault();
-                    EventBus.trigger('controller.direction', dirs[evt.keyCode]);
+                    eventBus.trigger('controller.direction', dirs[evt.keyCode]);
                 }
 
                 if (menuOptions[evt.keyCode]) {
                     evt.preventDefault();
-                    EventBus.trigger('controller.menu', menuOptions[evt.keyCode]);
+                    eventBus.trigger('controller.menu', menuOptions[evt.keyCode]);
                 }
 
             });
@@ -97,198 +98,195 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
         return coord1[0] === coord2[0] && coord1[1] === coord2[1];
     }
 
-    FixedQueue = function (length, initialItems) {
-        var self = this,
-            items = [],
-            i;
+    /**
+     * Get a random position that is not one of takenPositions
+     */
+    function randomPosition(boundaries, takenPositions) {
+        var tempPos, newPos;
 
-        self.add = function (item) {
-            items.unshift(item);
-            if (items.length > length) {
-                items.pop();
+        do {
+            tempPos = [
+                Math.floor(Math.random() * (boundaries[0] + 1)),
+                Math.floor(Math.random() * (boundaries[1] + 1))
+            ];
+            if (!_.some(takenPositions, _.partial(compareCoordinates, tempPos))) {
+                newPos = tempPos;
             }
-        };
+        } while (!newPos);
+
+        return newPos;
+    }
+
+
+    FixedQueue = function (length, initialItems) {
+        this.items = [];
+        this.length = length;
+        var i;
 
         if ($.isArray(initialItems)) {
             for (i = 0; i < initialItems.length; i++) {
-                self.add(initialItems[i]);
+                this.add(initialItems[i]);
             }
         }
-
-        self.pop = function () {
-            if (items.length) {
-                return items.pop();
-            }
-            return false;
-        };
-
-        self.getItems = function () {
-            return items;
-        };
-
-        self.grow = function(number) {
-            length += number;
-        }
-
     };
 
+    _.extend(FixedQueue.prototype, {
+        add: function add(item) {
+            this.items.unshift(item);
+            if (this.items.length > this.length) {
+                this.items.pop();
+            }
+        },
+        pop: function pop() {
+            if (this.items.length) {
+                return this.items.pop();
+            }
+            return false;
+        },
+        grow: function grow(number) {
+            this.length += number;
+        }
+    });
 
 
     /**
      * Our snake object, maintains its positions and can draw itself
      */
     Snake = function (boundaries) {
-        var positions = new FixedQueue(4, [[2,2]]),
-            dir = directions.RIGHT,
-            length = 6,
-            speed = 10,
-            maxSpeed = 100,
-            elapsedTime = 0,
-            actionQueue = new FixedQueue(4);
+        this.positions = new FixedQueue(3, [[2, 2]]);
+        this.dir = directions.RIGHT;
+        this.speed = 10;
+        this.maxSpeed = 100;
+        this.elapsedTime = 0;
+        this.actionQueue = new FixedQueue(4);
+        this.boundaries = boundaries;
+    };
 
+    _.extend(Snake.prototype, {
+        tail: function tail() {
+            return _.rest(this.getPositions());
+        },
 
-        function tail() {
-            return _.rest(getPositions());
-        }
+        nextPosition: function nextPosition() {
+            var pos = this.currentPosition(), next;
 
-        function grow() {
-            positions.grow(2);
-            if (speed < maxSpeed) {
-                speed += 1;
-            }
-        }
-
-        function getSpeed() {
-            return speed;
-        }
-
-        function currentPosition() {
-            return getPositions()[0];
-        }
-
-        function getPositions() {
-            return positions.getItems();
-        }
-
-        function nextPosition() {
-            var pos = currentPosition(), next;
-            if ((dir === directions.RIGHT && pos[0] === boundaries[0]) || (dir === directions.LEFT && pos[0] === 0)) {
-                next = [boundaries[0] - pos[0], pos[1]];
-            } else if ((dir === directions.DOWN && pos[1] === boundaries[1]) || (dir === directions.UP && pos[1] === 0)) {
-                next = [pos[0], boundaries[1] - pos[1]];
+            if ((this.dir === directions.RIGHT && pos[0] === this.boundaries[0]) || (this.dir === directions.LEFT && pos[0] === 0)) {
+                next = [this.boundaries[0] - pos[0], pos[1]];
+            } else if ((this.dir === directions.DOWN && pos[1] === this.boundaries[1]) || (this.dir === directions.UP && pos[1] === 0)) {
+                next = [pos[0], this.boundaries[1] - pos[1]];
             } else {
-                next = [pos[0] + dir[0], pos[1] + dir[1]];
+                next = [pos[0] + this.dir[0], pos[1] + this.dir[1]];
             }
             return next;
-        }
+        },
 
-        function getFrameStep() {
-            return 1000 / (speed /2);
-        }
+        getFrameTime: function getFrameTime() {
+            return 1000 / (this.speed / 2);
+        },
 
-        function changeDir(direction) {
-            actionQueue.add(direction);            
-        }
+        grow: function grow() {
+            this.positions.grow(2);
+            if (this.speed < this.maxSpeed) {
+                this.speed += 1;
+            }
+        },
+
+        getPositions: function getPositions() {
+            return this.positions.items;
+        },
+
+        currentPosition: function currentPosition() {
+            return this.getPositions()[0];
+        },
+
+        changeDir: function changeDir(direction) {
+            this.actionQueue.add(direction);
+        },
 
         /**
          * Move the snake in the direction it is travelling. Snake speed is based on time elapsed 
          */
-        function update(delta) {
-            elapsedTime += delta;
-            if (elapsedTime >= getFrameStep() && (dir[0] || dir[1])) {
-                var newDir = actionQueue.pop();
+        update: function update(delta) {
+            this.elapsedTime += delta;
+            if (this.elapsedTime >= this.getFrameTime() && (this.dir[0] || this.dir[1])) {
+                var newDir = this.actionQueue.pop();
                 if (newDir) {
-                    dir = (dir !== opposites[newDir]) ? directions[newDir] : dir;
+                    this.dir = (this.dir !== opposites[newDir]) ? directions[newDir] : this.dir;
                 }
-                positions.add(nextPosition());
+                this.positions.add(this.nextPosition());
 
-                if (_.some(tail(), _.partial(compareCoordinates, currentPosition()))) {
-                    EventBus.trigger('snake.hitSelf', true);
+                if (_.some(this.tail(), _.partial(compareCoordinates, this.currentPosition()))) {
+                    eventBus.trigger('snake.hitSelf', true);
                 }
 
-                elapsedTime = 0;
+                this.elapsedTime = 0;
             }
-        }
+        },
 
-        function draw(canvases) {
+        draw: function draw(canvases) {
             canvases.game.fillStyle = '#f10087';
 
-            _.forEach(positions.getItems(), function (position) {
+            _.forEach(this.getPositions(), function (position) {
                 drawRect(canvases.game, position);
             });
 
         }
-
-        function stop() {
-            dir = [0, 0];
-        }       
-
-        return {
-            draw: draw,
-            update: update,
-            position: currentPosition,
-            positions: getPositions,
-            grow: grow,
-            getSpeed : getSpeed,
-            changeDir: changeDir
-        };
-    };
+    });
 
     /**
      * Fruit object, can be eaten by a snake
      */
     Fruit = function () {
-        var pos = [10, 10];
-
-        function position() {
-            return pos;
-        }
-
-        function move(newPos) {
-            pos = newPos;
-        }
-
-        function draw(canvases) {
-            canvases.game.fillStyle = '#000000';
-            drawRect(canvases.game, pos);
-        }
-
-        function update(delta) {
-            return true;
-        }
-
-        return {
-            position : position,
-            move: move,
-            draw: draw,
-            update: update
-        };
+        this.position = [10, 10];
     };
 
-    FruitChecker = function(snake, fruit) {
-        return {
-            update: function() {
-                if (compareCoordinates(snake.position(), fruit.position())) {
-                    EventBus.trigger('snake.eatFruit', true);
-                }
-            },
-            draw: function() {}
-        }
-    }
+    _.extend(Fruit.prototype, {
+        move: function move(newPosition) {
+            this.position = newPosition;
+        },
 
-    GameOverScreen = function(score) {
-        var currentScore = 0;
+        draw: function draw(canvases) {
+            canvases.game.fillStyle = '#000000';
+            drawRect(canvases.game, this.position);
+        },
 
-        function update() {
-            if (currentScore != score) {
-                currentScore += 100;
+        update: $.noop
+    });
+
+
+
+    FruitChecker = function (snake, fruit) {
+        this.snake = snake;
+        this.fruit = fruit;
+    };
+
+    _.extend(FruitChecker.prototype, {
+        update: function update() {
+            if (compareCoordinates(this.snake.currentPosition(), this.fruit.position)) {
+                eventBus.trigger('snake.eatFruit', true);
             }
-            if (currentScore > score) {
-                currentScore = score;
-            }
-        }
+        },
+        draw: $.noop
+    });
 
-        function draw(canvases) {
+
+
+    GameOverScreen = function (score) {
+        this.currentScore = 0;
+        this.score = score;
+    };
+
+    _.extend(GameOverScreen.prototype, {
+        update: function update() {
+            if (this.currentScore !== this.score) {
+                this.currentScore += 100;
+            }
+            if (this.currentScore > this.score) {
+                this.currentScore = this.score;
+            }
+        },
+
+        draw: function draw(canvases) {
             var width = canvases.ui.canvas.width,
                 height = canvases.ui.canvas.height;
 
@@ -297,165 +295,142 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
             canvases.ui.fillStyle = '#FFFFFF';
             canvases.ui.textAlign = 'center';
             canvases.ui.font = 'normal 35px silkscreennormal';
-            canvases.ui.fillText("Score: " + currentScore, width / 2, height / 2 - 50);
+            canvases.ui.fillText("Score: " + this.currentScore, width / 2, height / 2 - 50);
             canvases.ui.font = 'normal 25px silkscreennormal';
             canvases.ui.fillText("Game Over", width / 2, height / 2);
             canvases.ui.font = 'normal 15px silkscreennormal';
             canvases.ui.fillText("Play Again?", width / 2, height / 2 + 45);
             canvases.ui.fillText("Y / N", width / 2, height / 2 + 65);
         }
-
-        return {
-            draw: draw,
-            update: update
-        }
-    }
+    });
 
     /**
      * Object to control the game. Runs the game loop and manages all the objects
      */
     Game = function (canvasIds, width, height) {
 
-        var snake,
-            fruit,
-            objects  = [],
-            time = 0,
-            requestId = null,
-            canvases = {},
-            gridBounds = [width, height],
-            canvasBounds,
-            score = 0,
-            fruitScore = 20,
-            running = false;
+        var defaults = {
+                objects: [],
+                time: 0,
+                requestId: null,
+                canvases: {},
+                gridBounds: [width, height],
+                score: 0,
+                fruitScore: 20,
+                running: false
+            };
 
-        canvasBounds = grid2coord([gridBounds[0] + 1, gridBounds[1] + 1]);
+        _.extend(this, defaults);
+
+        this.canvasBounds = grid2coord([this.gridBounds[0] + 1, this.gridBounds[1] + 1]);
 
         _.forEach(canvasIds, function (id, name) {
             var canvas = document.getElementById(id).getContext('2d');
-            canvas.canvas.width = canvasBounds[0];
-            canvas.canvas.height = canvasBounds[1];
-            canvases[name] = canvas;
-        });
+            canvas.canvas.width = this.canvasBounds[0];
+            canvas.canvas.height = this.canvasBounds[1];
+            this.canvases[name] = canvas;
+        }, this);
 
-        /**
-         * Get a random position that is not one of takenPositions
-         */
-        function randomPosition(takenPositions) {
-            var tempPos, newPos;
+    };
 
-            do {
-                tempPos = [
-                    Math.floor(Math.random() * (gridBounds[0] + 1)),
-                    Math.floor(Math.random() * (gridBounds[1] + 1))
-                ];
-                if (!_.some(takenPositions, _.partial(compareCoordinates, tempPos))) {
-                    newPos = tempPos;
-                }
-            } while (!newPos);
+    _.extend(Game.prototype, {
+        stop: function stop() {
+            this.running = false;
+            this.objects = [];
+        },
 
-            return newPos;
-        }
+        close: $.noop,
 
-        function stop() {
-            running = false;
-            objects = [];
-        }
+        clear: function clear() {
+            this.canvases.game.clearRect(0, 0, this.canvasBounds[0], this.canvasBounds[1]);
+            this.canvases.ui.clearRect(0, 0, this.canvasBounds[0], this.canvasBounds[1]);
+        },
 
-        function closeGame() {
-            console.log("not implemented");
-        }
-
-        function clear() {
-            canvases.game.clearRect(0, 0, canvasBounds[0], canvasBounds[1]);
-            canvases.ui.clearRect(0, 0, canvasBounds[0], canvasBounds[1]);
-        }
-
-
-        function handleEvents() 
-        {
+        handleEvents: function handleEvents() {
             var event,
                 options = {
-                     'YES': start,
-                     'NO': closeGame
+                    'YES': _.bind(this.start, this),
+                    'NO': _.bind(this.close, this)
                 };
 
-            while (event = EventBus.pop()) {
-                switch (event.name) { 
-                    case 'controller.direction':
-                        snake.changeDir(event.value);
-                        break;
-                    case 'controller.menu': 
-                        if (!running && options[event.value]) {
-                            options[event.value]();                        
-                        }
-                        break;               
-                    case 'snake.hitSelf':
-                        gameOver();
-                        break;
-                    case 'snake.eatFruit':
-                        fruit.move(randomPosition(snake.positions()));
-                        snake.grow();
-                        score += fruitScore * snake.getSpeed();
-                        break;
+            event = eventBus.pop();
+            while (event) {
+                switch (event.name) {
+                case 'controller.direction':
+                    this.snake.changeDir(event.value);
+                    break;
+                case 'controller.menu':
+                    if (!this.running && options[event.value]) {
+                        options[event.value]();
+                    }
+                    break;
+                case 'snake.hitSelf':
+                    this.gameOver();
+                    break;
+                case 'snake.eatFruit':
+                    this.fruit.move(randomPosition(this.gridBounds, this.snake.getPositions()));
+                    this.snake.grow();
+                    this.score += this.fruitScore * this.snake.speed;
+                    break;
                 }
+                event = eventBus.pop();
             }
-        }
+        },
 
         /**
          * Called on each frame to advance the game state
          */
-        function step(delta) {
-            handleEvents();
-            _.forEach(objects, function (object) {
+        step: function step(delta) {
+            this.handleEvents();
+            _.forEach(this.objects, function (object) {
                 object.update(delta);
             });
-            clear();
-            _.forEach(objects, function (object) {
-                object.draw(canvases);
-            });
-        }
+            this.clear();
+            _.forEach(this.objects, function (object) {
+                object.draw(this.canvases);
+            }, this);
+        },
 
         /**
          * Main game loop. Pass through time since last frame so we can do interpolation
          */
-        function gameLoop() {
-            requestId = window.requestAnimationFrame(gameLoop);
+        gameLoop: function gameLoop() {
+            this.requestId = window.requestAnimationFrame(this.gameLoop.bind(this));
             var delta, now = new Date().getTime();
-            delta = now - time;
-            step(delta);
-            time = now;
-        }
-
-        /**
-         * Start the game resetting all the game elements and starting up the game loop
-         */
-        function start() {
-            running = true;
-            time = 0;
-            score = 0;
-            fruit = new Fruit(gridBounds);
-            snake = new Snake(gridBounds);            
-            objects = [fruit, snake, new FruitChecker(snake, fruit)];
-            canvases.ui.clearRect(0, 0, canvasBounds[0], canvasBounds[1]);
-            gameLoop();
-        }
+            delta = now - this.time;
+            this.step(delta);
+            this.time = now;
+        },
 
         /**
          * Stop the game and show the game over screen
          */
-        function gameOver() {
-            stop();
-            objects.push(new GameOverScreen(score));
+        gameOver: function gameOver() {
+            this.stop();
+            this.objects.push(new GameOverScreen(this.score));
+        },
+
+        /**
+         * Start the game resetting all the game elements and starting up the game loop
+         */
+        start: function start() {
+            this.running = true;
+            this.time = 0;
+            this.score = 0;
+            this.fruit = new Fruit(this.gridBounds);
+            this.snake = new Snake(this.gridBounds);
+            this.objects = [this.fruit, this.snake, new FruitChecker(this.snake, this.fruit)];
+            this.gameLoop();
         }
+    });
 
 
-        return {
-            start: start
-        };
-    };
+
+
+
 
     $(document).ready(function () {
-        ControllerKeyboard.init(document);
+        controllerKeyboard.init(document);
 
         var game = new Game({game: 'game', back: 'background', ui: 'ui'}, 27, 20);
 
