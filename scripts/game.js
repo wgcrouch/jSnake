@@ -3,25 +3,19 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
 
 (function ($) {
     'use strict';
-    var eventBus,
-        controllerKeyboard,
-        Snake,
-        Game,
-        Fruit,
-        GameOverScreen,
-        FixedQueue,
-        FruitChecker,
-        directions = {
+    var eventBus, controllerKeyboard, Snake, Game, Fruit,
+        GameOverScreen, FixedQueue, FruitChecker, Grid,
+        DIRECTIONS = {
             UP: [0, -1],
             DOWN: [0, 1],
             LEFT: [-1, 0],
             RIGHT: [1, 0]
         },
-        opposites = {
-            UP: directions.DOWN,
-            DOWN: directions.UP,
-            LEFT: directions.RIGHT,
-            RIGHT: directions.LEFT
+        OPPOSITES = {
+            UP: DIRECTIONS.DOWN,
+            DOWN: DIRECTIONS.UP,
+            LEFT: DIRECTIONS.RIGHT,
+            RIGHT: DIRECTIONS.LEFT
         };
 
 
@@ -66,56 +60,66 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
         }
     };
 
-    /**
-     * Convert coordinates on the game grid to canvas coordinates
-     */
-    function grid2coord(pos) {
-        var x = pos[0],
-            y = pos[1],
-            width = 10,
-            height = 10,
-            gap = 2;
-
-        x = gap + x * (width + gap);
-        y = gap + y * (height + gap);
-
-        return [x, y];
-    }
 
     /**
-     * Draw a rectangle given game grid coordinates
+     * The game grid, and useful functions associated with it
      */
-    function drawRect(canvas, pos) {
-        var coordPos = grid2coord(pos);
+    Grid = function (width, height, blockWidth, blockHeight, gap) {
+        this.blockWidth = blockWidth;
+        this.blockHeight = blockHeight;
+        this.width = width;
+        this.height = height;
+        this.gap = gap;
+        this.canvasBounds = this.canvasCoordinates([this.width + 1, this.height + 1]);
 
-        canvas.fillRect(coordPos[0], coordPos[1], 10, 10);
-    }
+    };
 
-    /**
-     * Helper function to compare coordinates, useful for filter etc.
-     */
-    function compareCoordinates(coord1, coord2) {
-        return coord1[0] === coord2[0] && coord1[1] === coord2[1];
-    }
+    _.extend(Grid.prototype, {
+        /**
+         * Convert coordinates on the game grid to canvas coordinates
+         */
+        canvasCoordinates: function canvasCoordinates(position) {
+            var x = position[0],
+                y = position[1];
 
-    /**
-     * Get a random position that is not one of takenPositions
-     */
-    function randomPosition(boundaries, takenPositions) {
-        var tempPos, newPos;
+            x = this.gap + x * (this.blockWidth + this.gap);
+            y = this.gap + y * (this.blockHeight + this.gap);
 
-        do {
-            tempPos = [
-                Math.floor(Math.random() * (boundaries[0] + 1)),
-                Math.floor(Math.random() * (boundaries[1] + 1))
-            ];
-            if (!_.some(takenPositions, _.partial(compareCoordinates, tempPos))) {
-                newPos = tempPos;
-            }
-        } while (!newPos);
+            return [x, y];
+        },
 
-        return newPos;
-    }
+        drawBlock: function drawBlock(canvas, position) {
+            var coordinates = this.canvasCoordinates(position);
+            canvas.fillRect(coordinates[0], coordinates[1], this.blockWidth, this.blockHeight);
+        },
+
+        /**
+         * Helper function to compare coordinates, useful for filter etc.
+         */
+        compareCoordinates: function compareCoordinates(coordinate1, coordinate2) {
+            return coordinate1[0] === coordinate2[0] && coordinate1[1] === coordinate2[1];
+        },
+
+        /**
+         * Get a random position that is not one of takenPositions
+         */
+        randomPosition: function randomPosition(takenPositions) {
+            var tempPos, newPos;
+
+            do {
+                tempPos = [
+                    Math.floor(Math.random() * (this.width + 1)),
+                    Math.floor(Math.random() * (this.height + 1))
+                ];
+                if (!_.some(takenPositions, _.partial(this.compareCoordinates, tempPos))) {
+                    newPos = tempPos;
+                }
+            } while (!newPos);
+
+            return newPos;
+        }
+
+    });
 
 
     FixedQueue = function (length, initialItems) {
@@ -152,14 +156,14 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
     /**
      * Our snake object, maintains its positions and can draw itself
      */
-    Snake = function (boundaries) {
+    Snake = function (grid) {
         this.positions = new FixedQueue(3, [[2, 2]]);
-        this.dir = directions.RIGHT;
+        this.dir = DIRECTIONS.RIGHT;
         this.speed = 10;
         this.maxSpeed = 100;
         this.elapsedTime = 0;
         this.actionQueue = new FixedQueue(4);
-        this.boundaries = boundaries;
+        this.grid = grid;
     };
 
     _.extend(Snake.prototype, {
@@ -170,10 +174,10 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
         nextPosition: function nextPosition() {
             var pos = this.currentPosition(), next;
 
-            if ((this.dir === directions.RIGHT && pos[0] === this.boundaries[0]) || (this.dir === directions.LEFT && pos[0] === 0)) {
-                next = [this.boundaries[0] - pos[0], pos[1]];
-            } else if ((this.dir === directions.DOWN && pos[1] === this.boundaries[1]) || (this.dir === directions.UP && pos[1] === 0)) {
-                next = [pos[0], this.boundaries[1] - pos[1]];
+            if ((this.dir === DIRECTIONS.RIGHT && pos[0] === this.grid.width) || (this.dir === DIRECTIONS.LEFT && pos[0] === 0)) {
+                next = [this.grid.width - pos[0], pos[1]];
+            } else if ((this.dir === DIRECTIONS.DOWN && pos[1] === this.grid.height) || (this.dir === DIRECTIONS.UP && pos[1] === 0)) {
+                next = [pos[0], this.grid.height - pos[1]];
             } else {
                 next = [pos[0] + this.dir[0], pos[1] + this.dir[1]];
             }
@@ -211,11 +215,11 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
             if (this.elapsedTime >= this.getFrameTime() && (this.dir[0] || this.dir[1])) {
                 var newDir = this.actionQueue.pop();
                 if (newDir) {
-                    this.dir = (this.dir !== opposites[newDir]) ? directions[newDir] : this.dir;
+                    this.dir = (this.dir !== OPPOSITES[newDir]) ? DIRECTIONS[newDir] : this.dir;
                 }
                 this.positions.add(this.nextPosition());
 
-                if (_.some(this.tail(), _.partial(compareCoordinates, this.currentPosition()))) {
+                if (_.some(this.tail(), _.partial(this.grid.compareCoordinates, this.currentPosition()))) {
                     eventBus.trigger('snake.hitSelf', true);
                 }
 
@@ -227,8 +231,8 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
             canvases.game.fillStyle = '#f10087';
 
             _.forEach(this.getPositions(), function (position) {
-                drawRect(canvases.game, position);
-            });
+                this.grid.drawBlock(canvases.game, position);
+            }, this);
 
         }
     });
@@ -236,8 +240,9 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
     /**
      * Fruit object, can be eaten by a snake
      */
-    Fruit = function () {
+    Fruit = function (grid) {
         this.position = [10, 10];
+        this.grid = grid;
     };
 
     _.extend(Fruit.prototype, {
@@ -247,26 +252,24 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
 
         draw: function draw(canvases) {
             canvases.game.fillStyle = '#000000';
-            drawRect(canvases.game, this.position);
-        },
-
-        update: $.noop
+            this.grid.drawBlock(canvases.game, this.position);
+        }
     });
 
 
 
-    FruitChecker = function (snake, fruit) {
+    FruitChecker = function (snake, fruit, grid) {
         this.snake = snake;
         this.fruit = fruit;
+        this.grid = grid;
     };
 
     _.extend(FruitChecker.prototype, {
         update: function update() {
-            if (compareCoordinates(this.snake.currentPosition(), this.fruit.position)) {
+            if (this.grid.compareCoordinates(this.snake.currentPosition(), this.fruit.position)) {
                 eventBus.trigger('snake.eatFruit', true);
             }
-        },
-        draw: $.noop
+        }
     });
 
 
@@ -314,20 +317,19 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
                 time: 0,
                 requestId: null,
                 canvases: {},
-                gridBounds: [width, height],
                 score: 0,
                 fruitScore: 20,
-                running: false
+                running: false,
+                grid: new Grid(width, height, 10, 10, 2)
             };
 
         _.extend(this, defaults);
 
-        this.canvasBounds = grid2coord([this.gridBounds[0] + 1, this.gridBounds[1] + 1]);
-
+        //Set up the canvases we need
         _.forEach(canvasIds, function (id, name) {
             var canvas = document.getElementById(id).getContext('2d');
-            canvas.canvas.width = this.canvasBounds[0];
-            canvas.canvas.height = this.canvasBounds[1];
+            canvas.canvas.width = this.grid.canvasBounds[0];
+            canvas.canvas.height = this.grid.canvasBounds[1];
             this.canvases[name] = canvas;
         }, this);
 
@@ -342,13 +344,13 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
         close: $.noop,
 
         clear: function clear() {
-            this.canvases.game.clearRect(0, 0, this.canvasBounds[0], this.canvasBounds[1]);
-            this.canvases.ui.clearRect(0, 0, this.canvasBounds[0], this.canvasBounds[1]);
+            this.canvases.game.clearRect(0, 0, this.grid.canvasBounds[0], this.grid.canvasBounds[1]);
+            this.canvases.ui.clearRect(0, 0, this.grid.canvasBounds[0], this.grid.canvasBounds[1]);
         },
 
         handleEvents: function handleEvents() {
             var event,
-                options = {
+                menuOptions = {
                     'YES': _.bind(this.start, this),
                     'NO': _.bind(this.close, this)
                 };
@@ -360,15 +362,15 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
                     this.snake.changeDir(event.value);
                     break;
                 case 'controller.menu':
-                    if (!this.running && options[event.value]) {
-                        options[event.value]();
+                    if (!this.running && menuOptions[event.value]) {
+                        menuOptions[event.value]();
                     }
                     break;
                 case 'snake.hitSelf':
                     this.gameOver();
                     break;
                 case 'snake.eatFruit':
-                    this.fruit.move(randomPosition(this.gridBounds, this.snake.getPositions()));
+                    this.fruit.move(this.grid.randomPosition(this.snake.getPositions()));
                     this.snake.grow();
                     this.score += this.fruitScore * this.snake.speed;
                     break;
@@ -381,13 +383,21 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
          * Called on each frame to advance the game state
          */
         step: function step(delta) {
+
             this.handleEvents();
+
             _.forEach(this.objects, function (object) {
-                object.update(delta);
+                if (object.update) {
+                    object.update(delta);
+                }
             });
+
             this.clear();
+
             _.forEach(this.objects, function (object) {
-                object.draw(this.canvases);
+                if (object.draw) {
+                    object.draw(this.canvases);
+                }
             }, this);
         },
 
@@ -417,9 +427,9 @@ window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequest
             this.running = true;
             this.time = 0;
             this.score = 0;
-            this.fruit = new Fruit(this.gridBounds);
-            this.snake = new Snake(this.gridBounds);
-            this.objects = [this.fruit, this.snake, new FruitChecker(this.snake, this.fruit)];
+            this.fruit = new Fruit(this.grid);
+            this.snake = new Snake(this.grid);
+            this.objects = [this.fruit, this.snake, new FruitChecker(this.snake, this.fruit, this.grid)];
             this.gameLoop();
         }
     });
