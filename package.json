@@ -1,10 +1,15 @@
 {
   "name": "jSnake",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "devDependencies": {
-    "grunt": "~0.4.2",
-    "grunt-jslint": "~1.1.2",
-    "grunt-contrib-watch": "~0.5.3",
-    "grunt-contrib-connect": "~0.6.0"
+    "source-map-loader": "^0.1.5",
+    "ts-loader": "^0.8.2",
+    "typescript": "^1.8.10",
+    "typings": "^1.0.4",
+    "webpack": "^1.13.1",
+    "webpack-dev-server": "^1.14.1"
+  },
+  "dependencies": {
+    "lodash": "^4.13.1"
   }
 }
