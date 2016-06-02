@@ -8,7 +8,9 @@ class FruitChecker implements GameObject {
 
     constructor (private snake: Snake, private fruit: Fruit, private grid: Grid) {}
 
-    draw () {}
+    draw () {
+        return null;
+    }
 
     update () {
         if (this.grid.compareCoordinates(this.snake.currentPosition(), this.fruit.position)) {

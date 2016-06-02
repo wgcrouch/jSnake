@@ -1,5 +1,4 @@
 import Grid from './Grid';
-import Event from './Event';
 import EventBus from './EventBus';
 import GameOverScreen from './GameOverScreen';
 import Fruit from './Fruit';
@@ -7,7 +6,6 @@ import Snake from './Snake';
 import FruitChecker from './FruitChecker';
 import Canvases from './Canvases';
 import GameObject from './GameObject';
-
 
 /**
  * Object to control the game. Runs the game loop and manages all the objects
@@ -31,13 +29,14 @@ class Game {
         this.canvases = new Canvases(gameId, backId, uiId, this.grid.canvasBounds.x, this.grid.canvasBounds.y);
     }
 
-
     stop () {
         this.running = false;
         this.objects = [];
     }
 
-    close () {}
+    close () {
+        return null;
+    }
 
     clear () {
         this.canvases.game.clearRect(0, 0, this.grid.canvasBounds.x, this.grid.canvasBounds.y);
@@ -118,6 +117,5 @@ class Game {
         this.gameLoop();
     }
 }
-
 
 export default Game;

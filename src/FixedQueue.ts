@@ -27,5 +27,4 @@ class FixedQueue<T> {
     }
 };
 
-
 export default FixedQueue;

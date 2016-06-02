@@ -19,14 +19,14 @@ const OPPOSITES = {
   RIGHT: DIRECTIONS.LEFT
 };
 
-
 /**
  * Snake object, maintains its positions and can draw itself
  */
 class Snake implements GameObject {
+
+    public speed = 10;
     private positions = new FixedQueue(3, [ new Point2D(2, 2) ]);
     private dir = DIRECTIONS.RIGHT;
-    public speed = 10;
     private maxSpeed = 100;
     private elapsedTime = 0;
     private actionQueue = new FixedQueue<Point2D>(4);
@@ -41,9 +41,11 @@ class Snake implements GameObject {
         const pos = this.currentPosition();
         let next: Point2D;
 
-        if ((this.dir === DIRECTIONS.RIGHT && pos.x === this.grid.width) || (this.dir === DIRECTIONS.LEFT && pos.x === 0)) {
+        if ((this.dir === DIRECTIONS.RIGHT && pos.x === this.grid.width) ||
+            (this.dir === DIRECTIONS.LEFT && pos.x === 0)) {
             next = new Point2D(this.grid.width - pos.x, pos.y);
-        } else if ((this.dir === DIRECTIONS.DOWN && pos.y === this.grid.height) || (this.dir === DIRECTIONS.UP && pos.y === 0)) {
+        } else if ((this.dir === DIRECTIONS.DOWN && pos.y === this.grid.height) ||
+                   (this.dir === DIRECTIONS.UP && pos.y === 0)) {
             next = new Point2D(pos.x, this.grid.height - pos.y);
         } else {
             next = new Point2D(pos.x + this.dir.x, pos.y + this.dir.y);
@@ -104,6 +106,5 @@ class Snake implements GameObject {
 
     }
 }
-
 
 export default Snake;

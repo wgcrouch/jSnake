@@ -14,7 +14,9 @@ class Fruit implements GameObject {
         this.position = newPoint2D;
     }
 
-    update () {}
+    update () {
+        return null;
+    }
 
     draw (canvases: Canvases) {
         canvases.game.fillStyle = '#000000';

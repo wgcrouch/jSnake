@@ -4,9 +4,10 @@ import Point2D from './Point2D';
  * The game grid, and useful functions associated with it
  */
 class Grid {
-    canvasBounds: Point2D
+    canvasBounds: Point2D;
 
-    constructor (public width: number, public height: number, private blockWidth: number, private blockHeight: number, private gap: number) {
+    constructor (public width: number, public height: number,
+                 private blockWidth: number, private blockHeight: number, private gap: number) {
         this.canvasBounds = this.canvasCoordinates(new Point2D(this.width + 1, this.height + 1));
     }
 
@@ -55,6 +56,5 @@ class Grid {
         return newPos;
     }
 }
-
 
 export default Grid;

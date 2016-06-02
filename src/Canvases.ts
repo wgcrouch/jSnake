@@ -10,7 +10,7 @@ class Canvases {
     }
 
     loadCanvas(name: string, id: string, x, y) {
-        const canvasElement = <HTMLCanvasElement> document.getElementById(id);
+        const canvasElement = document.getElementById(id) as HTMLCanvasElement;
         const canvas = canvasElement.getContext('2d');
         canvas.canvas.width = x;
         canvas.canvas.height = y;
